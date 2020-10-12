@@ -144,7 +144,41 @@ CFLAGS-tst-auditmod10b.c += $(AVX512-CFLAGS)
 CFLAGS-tst-avx512-aux.c += $(AVX512-CFLAGS)
 CFLAGS-tst-avx512mod.c += $(AVX512-CFLAGS)
 endif
-endif
+
+$(objpfx)tst-glibc-hwcaps: \
+  $(objpfx)markermod2-1.so $(objpfx)markermod3-1.so $(objpfx)markermod4-1.so
+$(objpfx)tst-glibc-hwcaps.out: \
+  $(objpfx)markermod2.so \
+    $(objpfx)glibc-hwcaps/x86-64-v2/markermod2.so \
+  $(objpfx)markermod3.so \
+    $(objpfx)glibc-hwcaps/x86-64-v2/markermod3.so \
+    $(objpfx)glibc-hwcaps/x86-64-v3/markermod3.so \
+  $(objpfx)markermod4.so \
+    $(objpfx)glibc-hwcaps/x86-64-v2/markermod4.so \
+    $(objpfx)glibc-hwcaps/x86-64-v3/markermod4.so \
+    $(objpfx)glibc-hwcaps/x86-64-v4/markermod4.so \
+
+$(objpfx)glibc-hwcaps/x86-64-v2/markermod2.so: $(objpfx)markermod2-2.so
+	$(make-target-directory)
+	cp $< $@
+$(objpfx)glibc-hwcaps/x86-64-v2/markermod3.so: $(objpfx)markermod3-2.so
+	$(make-target-directory)
+	cp $< $@
+$(objpfx)glibc-hwcaps/x86-64-v3/markermod3.so: $(objpfx)markermod3-3.so
+	$(make-target-directory)
+	cp $< $@
+$(objpfx)glibc-hwcaps/x86-64-v2/markermod4.so: $(objpfx)markermod4-2.so
+	$(make-target-directory)
+	cp $< $@
+$(objpfx)glibc-hwcaps/x86-64-v3/markermod4.so: $(objpfx)markermod4-3.so
+	$(make-target-directory)
+	cp $< $@
+$(objpfx)glibc-hwcaps/x86-64-v4/markermod4.so: $(objpfx)markermod4-4.so
+	$(make-target-directory)
+	cp $< $@
+
+
+endif # $(subdir) == elf
 
 ifeq ($(subdir),csu)
 gen-as-const-headers += tlsdesc.sym rtld-offsets.sym
