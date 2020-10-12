@@ -188,3 +188,25 @@ ifeq ($(subdir),nptl)
 CFLAGS-tst-thread_local1.cc += -mno-float128
 CFLAGS-tst-minstack-throw.cc += -mno-float128
 endif
+
+ifeq ($(subdir),elf)
+$(objpfx)tst-glibc-hwcaps: \
+  $(objpfx)markermod2-1.so $(objpfx)markermod3-1.so
+$(objpfx)tst-glibc-hwcaps.out: \
+  $(objpfx)markermod2.so \
+    $(objpfx)glibc-hwcaps/power9/markermod2.so \
+  $(objpfx)markermod3.so \
+    $(objpfx)glibc-hwcaps/power9/markermod3.so \
+    $(objpfx)glibc-hwcaps/power10/markermod3.so \
+
+$(objpfx)glibc-hwcaps/power9/markermod2.so: $(objpfx)markermod2-2.so
+	$(make-target-directory)
+	cp $< $@
+$(objpfx)glibc-hwcaps/power9/markermod3.so: $(objpfx)markermod3-2.so
+	$(make-target-directory)
+	cp $< $@
+$(objpfx)glibc-hwcaps/power10/markermod3.so: $(objpfx)markermod3-3.so
+	$(make-target-directory)
+	cp $< $@
+
+endif # $(subdir) == elf
