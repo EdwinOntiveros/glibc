@@ -59,7 +59,8 @@ elide-routines.os = $(all-dl-routines) dl-support enbl-secure dl-origin \
 # ld.so uses those routines, plus some special stuff for being the program
 # interpreter and operating independent of libc.
 rtld-routines	= rtld $(all-dl-routines) dl-sysdep dl-environ dl-minimal \
-  dl-error-minimal dl-conflict dl-hwcaps dl-usage
+  dl-error-minimal dl-conflict dl-hwcaps dl-hwcaps_split dl-hwcaps-subdirs \
+  dl-usage
 all-rtld-routines = $(rtld-routines) $(sysdep-rtld-routines)
 
 CFLAGS-dl-runtime.c += -fexceptions -fasynchronous-unwind-tables
@@ -210,14 +211,14 @@ tests += restest1 preloadtest loadfail multiload origtest resolvfail \
 	 tst-filterobj tst-filterobj-dlopen tst-auxobj tst-auxobj-dlopen \
 	 tst-audit14 tst-audit15 tst-audit16 \
 	 tst-single_threaded tst-single_threaded-pthread \
-	 tst-tls-ie tst-tls-ie-dlmopen \
-	 argv0test
+	 tst-tls-ie tst-tls-ie-dlmopen argv0test \
+	 tst-glibc-hwcaps tst-glibc-hwcaps-prepend tst-glibc-hwcaps-mask
 #	 reldep9
 tests-internal += loadtest unload unload2 circleload1 \
 	 neededtest neededtest2 neededtest3 neededtest4 \
 	 tst-tls3 tst-tls6 tst-tls7 tst-tls8 tst-dlmopen2 \
 	 tst-ptrguard1 tst-stackguard1 tst-libc_dlvsym \
-	 tst-create_format1 tst-tls-surplus
+	 tst-create_format1 tst-tls-surplus tst-dl-hwcaps_split
 tests-container += tst-pldd tst-dlopen-tlsmodid-container \
   tst-dlopen-self-container
 test-srcs = tst-pathopt
@@ -329,7 +330,10 @@ modules-names = testobj1 testobj2 testobj3 testobj4 testobj5 testobj6 \
 		tst-single_threaded-mod3 tst-single_threaded-mod4 \
 		tst-tls-ie-mod0 tst-tls-ie-mod1 tst-tls-ie-mod2 \
 		tst-tls-ie-mod3 tst-tls-ie-mod4 tst-tls-ie-mod5 \
-		tst-tls-ie-mod6
+		tst-tls-ie-mod6 markermod1-1 markermod1-2 markermod1-3 \
+		markermod2-1 markermod2-2 \
+		markermod3-1 markermod3-2 markermod3-3 \
+		markermod4-1 markermod4-2 markermod4-3 markermod4-4 \
 
 # Most modules build with _ISOMAC defined, but those filtered out
 # depend on internal headers.
@@ -1812,3 +1816,55 @@ $(objpfx)argv0test.out: tst-rtld-argv0.sh $(objpfx)ld.so \
             '$(test-wrapper-env)' '$(run_program_env)' \
             '$(rpath-link)' 'test-argv0' > $@; \
     $(evaluate-test)
+
+# Most likely search subdirectories across multiple architectures.
+glibc-hwcaps-first-subdirs = power9 x86-64-v2
+
+# The test modules are parameterized by preprocessor macros.
+LDFLAGS-markermod1-1.so += -Wl,-soname,markermod1.so
+LDFLAGS-markermod2-1.so += -Wl,-soname,markermod2.so
+LDFLAGS-markermod3-1.so += -Wl,-soname,markermod3.so
+LDFLAGS-markermod4-1.so += -Wl,-soname,markermod4.so
+$(objpfx)markermod%.os : markermodMARKER-VALUE.c
+	$(compile-command.c) \
+	  -DMARKER=marker$(firstword $(subst -, ,$*)) \
+	  -DVALUE=$(lastword $(subst -, ,$*))
+$(objpfx)markermod1.so: $(objpfx)markermod1-1.so
+	cp $< $@
+$(objpfx)markermod2.so: $(objpfx)markermod2-1.so
+	cp $< $@
+$(objpfx)markermod3.so: $(objpfx)markermod3-1.so
+	cp $< $@
+$(objpfx)markermod4.so: $(objpfx)markermod4-1.so
+	cp $< $@
+
+# tst-glibc-hwcaps-prepend checks that --glibc-hwcaps-prepend is
+# preferred over auto-detected subdirectories.
+$(objpfx)tst-glibc-hwcaps-prepend: $(objpfx)markermod1-1.so
+$(objpfx)glibc-hwcaps/prepend-markermod1/markermod1.so: \
+  $(objpfx)markermod1-2.so
+	$(make-target-directory)
+	cp $< $@
+$(objpfx)glibc-hwcaps/%/markermod1.so: $(objpfx)markermod1-3.so
+	$(make-target-directory)
+	cp $< $@
+$(objpfx)tst-glibc-hwcaps-prepend.out: \
+  $(objpfx)tst-glibc-hwcaps-prepend $(objpfx)markermod1.so \
+  $(patsubst %,$(objpfx)glibc-hwcaps/%/markermod1.so,prepend-markermod1 \
+  $(glibc-hwcaps-first-subdirs))
+	$(test-wrapper) $(rtld-prefix) \
+	  --glibc-hwcaps-prepend prepend-markermod1 \
+	  $< > $@; \
+	$(evaluate-test)
+
+# tst-glibc-hwcaps-mask checks that --glibc-hwcaps-mask can be used to
+# suppress all auto-detected subdirectories.
+$(objpfx)tst-glibc-hwcaps-mask: $(objpfx)markermod1-1.so
+$(objpfx)tst-glibc-hwcaps-mask.out: \
+  $(objpfx)tst-glibc-hwcaps-mask $(objpfx)markermod1.so \
+  $(patsubst %,$(objpfx)glibc-hwcaps/%/markermod1.so,\
+  $(glibc-hwcaps-first-subdirs))
+	$(test-wrapper) $(rtld-prefix) \
+	  --glibc-hwcaps-mask does-not-exist \
+	  $< > $@; \
+	$(evaluate-test)
